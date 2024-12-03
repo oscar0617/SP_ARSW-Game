@@ -1,0 +1,38 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- checkout: self
+  fetchDepth: 0
+- task: Maven@4
+  inputs:
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx3072m'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.17'  
+    jdkArchitectureOption: 'x64'
+    goals: 'package'
+
+- task: Docker@2
+  inputs:
+    command: 'buildAndPush'
+    containerRegistry: 'AzureEciTron'
+    repository: 'ecitroncontainerregistry'
+    dockerfile: 'Dockerfile'
+    tags: |
+      $(Build.BuildId)
+
+- task: AzureContainerApps@1
+  inputs:
+    azureSubscription: 'ecitron'  # Asegúrate de que este nombre de suscripción es correcto en Azure DevOps
+    resourceGroup: 'ECITron'  # Nombre del grupo de recursos donde se encuentra tu entorno
+    environmentName: 'ado-task-app-23-20241008-21-env'  # Nombre correcto del entorno de Container Apps
+    appName: 'ado-task-app-31-20241012-3'  # Nombre de la aplicación que se está creando o actualizando
+    imageToDeploy: 'ecitroncontainerregistry.azurecr.io/ecitroncontainerregistry:$(Build.BuildId)'  # Verifica el nombre del ACR e imagen, en minúsculas
+    ingress: 'external'  # Asegura que el tráfico externo está permitido si lo necesitas
+    targetPort: '8080'  # Puerto correcto que tu aplicación está escuchando (ajusta si es necesario)
+    cpu: '1'          
+    memory: '1Gi'
